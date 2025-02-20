@@ -1,0 +1,134 @@
+// ///
+
+// 🎯 Possible Status Values
+// Status	Meaning
+// "pending"	Default state; no audit conducted yet.
+// "compliant"	Fully meets the requirement. ✅ +1
+// "partially_compliant"	Some issues exist but mostly meets the requirement. 🟡 +.5
+// "non_compliant"	Fails to meet the requirement. ❌ -1
+// "exempted"	Does not apply due to valid "disproportionate burden" or "fundamental alteration." ⚠️ +0
+
+// ///
+
+{
+  "directive": "EU 2019/882",
+  "requirements": [
+    {
+      "requirement_id": "A1.1",
+      "description": "Websites must be perceivable, operable, understandable, and robust.",
+      "category": "Web Accessibility",
+      "criticality": "HIGH",
+      "legal_reference": "Annex I, Section I",
+      "status": "pending",
+      "exemptible": false
+    },
+    {
+      "requirement_id": "A1.2",
+      "description": "Mobile applications must comply with accessibility standards similar to websites.",
+      "category": "Mobile Accessibility",
+      "criticality": "HIGH",
+      "legal_reference": "Annex I, Section II",
+      "status": "pending",
+      "exemptible": false
+    },
+    {
+      "requirement_id": "A2.1",
+      "description": "Self-service terminals (e.g., ATMs, ticketing machines) must provide accessible interfaces (e.g., tactile, voice, Braille support).",
+      "category": "Hardware Accessibility",
+      "criticality": "HIGH",
+      "legal_reference": "Annex I, Section III",
+      "status": "pending",
+      "exemptible": true
+    },
+    {
+      "requirement_id": "A2.2",
+      "description": "Consumer hardware devices must support assistive technologies (e.g., screen readers).",
+      "category": "Hardware Accessibility",
+      "criticality": "HIGH",
+      "legal_reference": "Annex I, Section III",
+      "status": "pending",
+      "exemptible": false
+    },
+    {
+      "requirement_id": "A3.1",
+      "description": "User manuals must be available in accessible formats (e.g., large print, digital screen-reader compatible).",
+      "category": "Information & Documentation",
+      "criticality": "MEDIUM",
+      "legal_reference": "Annex I, Section IV",
+      "status": "pending",
+      "exemptible": true
+    },
+    {
+      "requirement_id": "A3.2",
+      "description": "Customer support must provide accessible communication channels (e.g., text relay, sign language interpretation).",
+      "category": "Service Accessibility",
+      "criticality": "HIGH",
+      "legal_reference": "Annex I, Section V",
+      "status": "pending",
+      "exemptible": false
+    },
+    {
+      "requirement_id": "A4.1",
+      "description": "Emergency communications (e.g., calling 112) must be accessible to persons with disabilities.",
+      "category": "Emergency Services",
+      "criticality": "HIGH",
+      "legal_reference": "Article 3(3), Annex I",
+      "status": "pending",
+      "exemptible": false
+    },
+    {
+      "requirement_id": "A5.1",
+      "description": "E-books must be compatible with assistive technologies, allowing text-to-speech and font resizing.",
+      "category": "Digital Accessibility",
+      "criticality": "MEDIUM",
+      "legal_reference": "Annex I, Section VI",
+      "status": "pending",
+      "exemptible": false
+    },
+    {
+      "requirement_id": "A6.1",
+      "description": "E-commerce websites must provide accessible product descriptions, checkout processes, and customer support.",
+      "category": "E-Commerce Accessibility",
+      "criticality": "HIGH",
+      "legal_reference": "Annex I, Section VII",
+      "status": "pending",
+      "exemptible": false
+    },
+    {
+      "requirement_id": "A7.1",
+      "description": "Transport service information (real-time travel, ticketing, cancellations) must be accessible.",
+      "category": "Transport Accessibility",
+      "criticality": "HIGH",
+      "legal_reference": "Annex I, Section VIII",
+      "status": "pending",
+      "exemptible": true
+    },
+    {
+      "requirement_id": "A7.2",
+      "description": "Interactive self-service terminals (e.g., airport check-in kiosks) must be designed for accessibility.",
+      "category": "Transport Accessibility",
+      "criticality": "HIGH",
+      "legal_reference": "Annex I, Section VIII",
+      "status": "pending",
+      "exemptible": true
+    },
+    {
+      "requirement_id": "A8.1",
+      "description": "Banking services must offer accessible authentication and transaction methods.",
+      "category": "Banking Accessibility",
+      "criticality": "HIGH",
+      "legal_reference": "Annex I, Section IX",
+      "status": "pending",
+      "exemptible": false
+    },
+    {
+      "requirement_id": "A9.1",
+      "description": "Exemptions (e.g., disproportionate burden) must be documented with justification.",
+      "category": "Compliance & Documentation",
+      "criticality": "HIGH",
+      "legal_reference": "Annex VI",
+      "status": "pending",
+      "exemptible": false
+    }
+  ]
+}
