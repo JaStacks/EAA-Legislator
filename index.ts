@@ -71,7 +71,7 @@ agent.addCapability({
         body: 'Summarize the compliance results into an accessible report. You MUST use the capability: `process-results`. No other tools are required to complete this task. Required input: `compliance.json`.',
         input: `'compliance.json' from the workspace`,
         expectedOutput: `Plain language report named report.json`,
-        dependencies: calculateScore.id ? [calculateScore.id] : []
+        dependencies: compareAudit.id ? [compareAudit.id] : []
       })
 
       console.log('Legislative task sequence created successfully:', {
@@ -99,18 +99,18 @@ agent.addCapability({
   async run({ action }) {
     const regulations = await import('./util/regulations.json')
     const regulation = regulations.default
-    // await agent.uploadFile({
-    //   workspaceId: action.workspace.id,
-    //   path: 'regulations.json',
-    //   file: JSON.stringify(regulation),
-    //   skipSummarizer: true
-    // })
-    // await agent.completeTask({
-    //   workspaceId: action.workspace.id,
-    //   taskId: action.task.id,
-    //   output: 'File named regulations.json'
-    // })
-    return JSON.stringify(regulation)
+    await agent.uploadFile({
+      workspaceId: action.workspace.id,
+      path: 'regulations.json',
+      file: JSON.stringify(regulation),
+      skipSummarizer: true
+    })
+    await agent.completeTask({
+      workspaceId: action.workspace.id,
+      taskId: action.task.id,
+      output: 'File named regulations.json'
+    })
+    return 'Task complete'
   }
 })
 
@@ -121,7 +121,7 @@ agent.addCapability({
   async run({ args, action }): Promise<string> {
     try {
       // Validate workspace ID
-      const workspaceId = action?.workspace?.id
+      const workspaceId = action.workspace.id
       if (!workspaceId) {
         throw new Error('Workspace ID is missing or undefined.')
       }
@@ -152,18 +152,18 @@ agent.addCapability({
       // Run the compliance mapping function
       const { mappedResults, auditFix } = mapLighthouseToEAA(audit, regulations)
 
-      // await agent.uploadFile({
-      //   workspaceId: action.workspace.id,
-      //   path: 'compliance.json',
-      //   file: JSON.stringify({ mappedResults, auditFix }),
-      //   skipSummarizer: true
-      // })
-      // await agent.completeTask({
-      //   workspaceId: action.workspace.id,
-      //   taskId: action.task.id,
-      //   output: 'File named compliance.json'
-      // })
-      return JSON.stringify({ mappedResults, auditFix })
+      await agent.uploadFile({
+        workspaceId: action.workspace.id,
+        path: 'compliance.json',
+        file: JSON.stringify({ mappedResults, auditFix }),
+        skipSummarizer: true
+      })
+      await agent.completeTask({
+        workspaceId: action.workspace.id,
+        taskId: action.task.id,
+        output: 'File named compliance.json'
+      })
+      return 'Task complete, compliance.json uploaded'
     } catch (error) {
       console.error('Error running comparison:', error)
       throw new Error('Failed to compare audit results with regulations.')
@@ -227,310 +227,210 @@ agent.addCapability({
       maxPossibleScore += multiplier
     })
 
-    // Normalize to a percentage out of 100
+      // Normalize to a percentage out of 100
     const finalScore = maxPossibleScore > 0 ? (totalWeightedScore / maxPossibleScore) * 100 : 0
+    console.log("Final score", finalScore);
 
-    // await agent.uploadFile({
-    //   workspaceId: action.workspace.id,
-    //   path: 'score.json',
-    //   file: JSON.stringify({ finalScore: Math.round(finalScore) }),
-    //   skipSummarizer: true
-    // })
-    // await agent.completeTask({
-    //   workspaceId: action.workspace.id,
-    //   taskId: action.task.id,
-    //   output: 'File named score.json'
-    // })
-    return JSON.stringify({ finalScore: Math.round(finalScore) })
+    await agent.uploadFile({
+      workspaceId: action.workspace.id,
+      path: 'score.json',
+      file: JSON.stringify({ finalScore: Math.round(finalScore) }),
+      skipSummarizer: true
+    })
+    await agent.completeTask({
+      workspaceId: action.workspace.id,
+      taskId: action.task.id,
+      output: 'File named score.json'
+    })
+    return 'Task complete, file named: score.json'
   }
 })
 
+
+const complianceDataSchema = z.object({
+  mappedResults: z.object({
+    directive: z.string().optional(),
+    requirements: z.array(
+      z.object({
+        requirement_id: z.string(),
+        description: z.string(),
+        category: z.string(),
+        criticality: z.string(),
+        legal_reference: z.string(),
+        status: z.enum(["compliant", "partially_compliant", "non_compliant", "pending"]),
+        exemptible: z.boolean().optional(),
+      })
+    ),
+  }),
+  auditFix: z.record(
+    z.string(),
+    z.object({
+      id: z.string(),
+      title: z.string(),
+      description: z.string(),
+      score: z.number().optional(),
+      scoreDisplayMode: z.string().optional(),
+      details: z
+        .object({
+          type: z.string(),
+          headings: z.array(
+            z.object({
+              key: z.string(),
+              valueType: z.string(),
+              subItemsHeading: z
+                .object({
+                  key: z.string(),
+                  valueType: z.string(),
+                })
+                .optional(),
+              label: z.string(),
+            })
+          ),
+          items: z.array(
+            z.object({
+              node: z.object({
+                type: z.string(),
+                lhId: z.string(),
+                path: z.string(),
+                selector: z.string(),
+                boundingRect: z.object({
+                  top: z.number(),
+                  bottom: z.number(),
+                  left: z.number(),
+                  right: z.number(),
+                  width: z.number(),
+                  height: z.number(),
+                }),
+                snippet: z.string(),
+                nodeLabel: z.string(),
+                explanation: z.string(),
+              }),
+            })
+          ),
+          debugData: z.object({
+            type: z.string(),
+            impact: z.string(),
+            tags: z.array(z.string()),
+          }),
+        })
+        .optional(),
+    })
+  ),
+});
 
 agent.addCapability({
   name: "process-results",
   description: "Generates an accessibility compliance report with clear and actionable developer insights. No other tools are needed to complete this process.",
   schema: z.object({
-    complianceData: z.record(z.unknown()), // Accepts any valid JSON object
+    complianceData: complianceDataSchema, // Enforce structured validation
   }),
   async run({ args, action }) {
-    const complianceData = args.complianceData as {
-      mappedResults?: {
-        directive?: string;
-        requirements?: Array<{
-          requirement_id: string;
-          description: string;
-          category: string;
-          criticality: string;
-          legal_reference: string;
-          status: string;
-        }>;
-      };
-      auditFix?: {
-        [key: string]: {
-          title: string;
-          description: string;
-          details?: {
-            items?: Array<{ nodeLabel?: string; selector?: string; explanation?: string }>;
-          };
-        };
-      };
-    };
+    const complianceData = args.complianceData;
 
     if (!complianceData || typeof complianceData !== "object") {
+      console.error("Error: Invalid compliance data provided.");
       return "Error: Invalid compliance data provided.";
+    }
+
+    try {
+      complianceDataSchema.parse(complianceData);
+    } catch (error) {
+      console.error("Schema validation failed:", error.errors);
+      return "Error: Compliance data does not match the expected schema.";
     }
 
     const { mappedResults, auditFix } = complianceData;
 
     if (!mappedResults?.requirements || !Array.isArray(mappedResults.requirements)) {
+      console.error("Error: 'requirements' field is missing or malformed.");
       return "Error: 'requirements' field is missing or malformed.";
     }
 
-    // ✅ Create a structured user-friendly prompt for AI processing
-    const userPrompt = mappedResults.requirements
-      .map((req) => {
-        const fixData = auditFix?.[req.requirement_id];
+    const summary = {
+      partially_compliant: [],
+      compliant: [],
+      pending_high_criticality: [],
+      pending_medium_criticality: [],
+    };
+
+    const actionableInsights = [];
+
+    mappedResults.requirements.forEach((req) => {
+      const fixData = auditFix?.[req.requirement_id];
+      const requirementSummary = {
+        requirement_id: req.requirement_id,
+        description: req.description,
+        category: req.category,
+        criticality: req.criticality,
+        legal_reference: req.legal_reference,
+      };
+
+      if (req.status === "compliant") {
+        summary.compliant.push(requirementSummary);
+        return;
+      }
+
+      if (req.status === "partially_compliant" || req.status === "non_compliant") {
         const issueDetails = fixData
-          ? `**Issue:** ${fixData.title || "Unknown issue"}\n**Description:** ${fixData.description || "No description provided."}`
-          : "**Issue:** Unknown issue\n**Description:** No description available.";
+          ? {
+              issue: fixData.title || "Issue not specified.",
+              suggestion: fixData.description || "No specific fix available.",
+            }
+          : { issue: "Issue not specified.", suggestion: "No specific fix available." };
 
-        const failingElements =
-          fixData?.details?.items && fixData.details.items.length > 0
-            ? fixData.details.items
-                .map(
-                  (item, index) =>
-                    `  ${index + 1}. **Element:** ${item.nodeLabel || "Unknown"}\n     - **Selector:** \`${item.selector || "N/A"}\`\n     - **Explanation:** ${item.explanation || "No explanation provided."}`
-                )
-                .join("\n")
-            : "  - No specific elements identified.";
+        summary.partially_compliant.push({ ...requirementSummary, ...issueDetails });
 
-        return `### Requirement: ${req.requirement_id}
-**Category:** ${req.category}  
-**Criticality:** ${req.criticality}  
-**Status:** ${req.status}  
-**Legal Reference:** ${req.legal_reference}  
+        if (fixData?.details?.items && fixData.details.items.length > 0) {
+          fixData.details.items.forEach((item) => {
+            actionableInsights.push({
+              issue: `${fixData.title} (${req.requirement_id})`,
+              failing_element: item.node.nodeLabel || "Unknown Element",
+              selector: item.node.selector || "No selector available",
+              explanation: item.node.explanation || "No explanation provided.",
+              suggestion: fixData.description || "Follow the WCAG guidelines for compliance.",
+            });
+          });
+        } else {
+          actionableInsights.push({
+            issue: `${fixData.title} (${req.requirement_id})`,
+            failing_element: "No specific elements identified.",
+            selector: "N/A",
+            explanation: "No specific failing elements provided.",
+            suggestion: fixData.description || "Follow accessibility guidelines for best practices.",
+          });
+        }
+      }
 
-${issueDetails}
-
-**Failing Elements:**  
-${failingElements}
-
-**Required Fix:**  
-Provide a **step-by-step** solution that developers can follow to fix this issue, ensuring compliance with accessibility standards.
-
-**Acceptance Criteria:**  
-- Clearly define what needs to be fixed.  
-- Specify when the issue is considered resolved (e.g., “Button must have an accessible label” ✅).  
-- Break down the solution into actionable, non-technical explanations.`;
-      })
-      .join("\n\n");
-
-    // ✅ Call the agent to process and generate developer-friendly report
-    const result = await agent.process({
-      messages: [
-        {
-          role: "system",
-          content: `You are an AI accessibility compliance assistant. Your task is to generate a clear, developer-friendly report based on accessibility audit data.
-
-**Instructions:**
-1. **Explain each problem in non-technical terms** so that non-experts can understand the impact.
-2. **Provide solutions with step-by-step guidance** on how to fix accessibility issues.
-3. **Break down compliance into simple language**, highlighting what is compliant and what is missing.
-4. **Ensure each task is actionable** with:
-   - A clear description of what needs to be fixed.
-   - Acceptance criteria for when the issue is resolved.
-   - Developer-friendly explanations.
-`
-        },
-        { role: "user", content: userPrompt },
-      ],
+      if (req.status === "pending") {
+        if (req.criticality === "HIGH") {
+          summary.pending_high_criticality.push(req.requirement_id);
+        } else if (req.criticality === "MEDIUM") {
+          summary.pending_medium_criticality.push(req.requirement_id);
+        }
+      }
     });
 
-    if (result.choices && result.choices.length > 0) {
-      const reportContent = result.choices[result.choices.length - 1].message.content || "Processing failed. No response generated.";
+    await agent.uploadFile({
+      workspaceId: action.workspace.id,
+      path: "report.json",
+      file: JSON.stringify({
+        directive: mappedResults.directive || "Unknown Directive",
+        summary,
+        actionable_insights: actionableInsights,
+      }),
+      skipSummarizer: true,
+    });
 
-      // await agent.uploadFile({
-      //   workspaceId: action.workspace.id,
-      //   path: "report.json",
-      //   file: JSON.stringify({ report: reportContent }),
-      //   skipSummarizer: true,
-      // });
+    await agent.completeTask({
+      workspaceId: action.workspace.id,
+      taskId: action.task.id,
+      output: "File named report.json",
+    });
 
-      // await agent.completeTask({
-      //   workspaceId: action.workspace.id,
-      //   taskId: action.task.id,
-      //   output: "File named report.json",
-      // });
-
-      return JSON.stringify({ report: reportContent });
-    }
-
-    return "Processing failed. No response generated.";
+    return "Task complete, file named: report.json";
   },
 });
 
-
-// agent.addCapability({
-//   name: "process-results",
-//   description: "Generates an accessibility compliance report with clear and actionable developer insights. No other tools are needed to complete this process.",
-//   schema: z.object({
-//     complianceData: z.record(z.unknown()), // Accepts any valid JSON object
-//   }),
-//   async run({ args, action }) {
-
-//     const complianceData = args.complianceData as {
-//       mappedResults?: {
-//         directive?: string;
-//         requirements?: Array<{
-//           requirement_id: string;
-//           description: string;
-//           category: string;
-//           criticality: string;
-//           legal_reference: string;
-//           status: string;
-//         }>;
-//       };
-//       auditFix?: {
-//         [key: string]: {
-//           title: string;
-//           description: string;
-//           details?: {
-//             items?: Array<{ nodeLabel?: string; selector?: string; explanation?: string }>;
-//           };
-//         };
-//       };
-//     };
-
-//     if (!complianceData || typeof complianceData !== "object") {
-//       console.error("Error: Invalid compliance data provided.");
-//       return "Error: Invalid compliance data provided.";
-//     }
-
-//     // ✅ Now correctly reading from `mappedResults`
-//     const { mappedResults, auditFix } = complianceData;
-
-//     if (!mappedResults?.requirements || !Array.isArray(mappedResults.requirements)) {
-//       console.error("Error: 'requirements' field is missing or malformed.", JSON.stringify(complianceData, null, 2));
-//       return "Error: 'requirements' field is missing or malformed.";
-//     }
-
-//     const mappedResultsData = {
-//       directive: mappedResults.directive || "Unknown Directive",
-//       requirements: mappedResults.requirements.map(req => ({
-//         requirement_id: req.requirement_id,
-//         description: req.description,
-//         category: req.category,
-//         criticality: req.criticality,
-//         legal_reference: req.legal_reference,
-//         status: req.status,
-//       })),
-//     };
-
-//     const summary = {
-//       partially_compliant: [] as Array<{
-//         requirement_id: string;
-//         description: string;
-//         category: string;
-//         criticality: string;
-//         legal_reference: string;
-//         issue?: string;
-//         suggestion?: string;
-//       }>,
-//       compliant: [] as Array<{
-//         requirement_id: string;
-//         description: string;
-//         category: string;
-//         criticality: string;
-//         legal_reference: string;
-//       }>,
-//       pending_high_criticality: [] as string[],
-//       pending_medium_criticality: [] as string[],
-//     };
-
-//     const actionableInsights = [] as Array<{
-//       issue: string;
-//       failing_element: string;
-//       selector: string;
-//       explanation: string;
-//       suggestion: string;
-//     }>;
-
-//     mappedResults.requirements.forEach((req) => {
-//       const fixData = auditFix?.[req.requirement_id];
-//       const requirementSummary = {
-//         requirement_id: req.requirement_id,
-//         description: req.description,
-//         category: req.category,
-//         criticality: req.criticality,
-//         legal_reference: req.legal_reference,
-//       };
-
-//       if (req.status === "compliant") {
-//         summary.compliant.push(requirementSummary);
-//         return;
-//       }
-
-//       if (req.status === "partially_compliant" || req.status === "non_compliant") {
-//         const issueDetails = fixData
-//           ? {
-//               issue: fixData.title || "Issue not specified.",
-//               suggestion: fixData.description || "No specific fix available.",
-//             }
-//           : { issue: "Issue not specified.", suggestion: "No specific fix available." };
-
-//         summary.partially_compliant.push({ ...requirementSummary, ...issueDetails });
-
-//         // Extract actionable elements from `auditFix`
-//         if (fixData?.details?.items && fixData.details.items.length > 0) {
-//           fixData.details.items.forEach((item) => {
-//             actionableInsights.push({
-//               issue: `${fixData.title} (${req.requirement_id})`,
-//               failing_element: item.nodeLabel || "Unknown Element",
-//               selector: item.selector || "No selector available",
-//               explanation: item.explanation || "No explanation provided.",
-//               suggestion: fixData.description || "Follow the WCAG guidelines for compliance.",
-//             });
-//           });
-//         } else {
-//           actionableInsights.push({
-//             issue: `${fixData.title} (${req.requirement_id})`,
-//             failing_element: "No specific elements identified.",
-//             selector: "N/A",
-//             explanation: "No specific failing elements provided.",
-//             suggestion: fixData.description || "Follow accessibility guidelines for best practices.",
-//           });
-//         }
-//       }
-
-//       if (req.status === "pending") {
-//         if (req.criticality === "HIGH") {
-//           summary.pending_high_criticality.push(req.requirement_id);
-//         } else if (req.criticality === "MEDIUM") {
-//           summary.pending_medium_criticality.push(req.requirement_id);
-//         }
-//       }
-//     });
-
-//     await agent.uploadFile({
-//       workspaceId: action.workspace.id,
-//       path: "report.json",
-//       file: JSON.stringify({
-//         mappedResults: mappedResultsData,
-//         summary,
-//         actionable_insights: actionableInsights,
-//       }),
-//       skipSummarizer: true,
-//     });
-
-//     await agent.completeTask({
-//       workspaceId: action.workspace.id,
-//       taskId: action.task.id,
-//       output: "File named report.json",
-//     });
-
-//     return "Task complete, file named: report.json";
-//   },
-// });
 
 
 async function safeCreateTask(taskData: {
