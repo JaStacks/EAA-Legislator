@@ -13,7 +13,7 @@ export const agent = new Agent({
 agent.addCapability({
   name: 'create_task_sequence',
   description:
-    'Creates a structured sequence of tasks for compliance auditing using defined capabilities. No other tools are required to complete this process.',
+    'Creates a structured sequence of tasks for compliance auditing using defined capabilities. No other tools are required to complete this process. Expected output: generateReport_id to confirm task sequence created succesfuly',
   schema: z.object({}),
   async run({ args, action }): Promise<string> {
     const workspaceId = action?.workspace?.id || parseInt(process.env.WORKSPACE_ID || '0')

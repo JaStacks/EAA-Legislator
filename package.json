@@ -4,7 +4,7 @@
   "description": "A lightning fast starter for autonomous AI agent development",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only -r dotenv/config src/index.ts",
+    "dev": "ts-node-dev --respawn --transpile-only -r dotenv/config index.ts",
     "build": "tsc",
     "start": "node -r dotenv/config dist/index.js",
     "lint": "eslint . --ext .ts",
